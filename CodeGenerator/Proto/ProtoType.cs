@@ -71,6 +71,7 @@ namespace SilentOrbit.ProtocolBuffers
         /// .proto package option
         /// </summary>
         public string Package { get; set; }
+        
         #region Local options
         public string OptionNamespace { get; set; }
 
@@ -83,12 +84,6 @@ namespace SilentOrbit.ProtocolBuffers
         /// Call triggers before/after serialization.
         /// </summary>
         public bool OptionTriggers { get; set; }
-
-        /// <summary>
-        /// Keep unknown fields when deserializing and send them back when serializing.
-        /// This will generate field to store any unknown keys and their value.
-        /// </summary>
-        public bool OptionPreserveUnknown { get; set; }
 
         /// <summary>
         /// Don't create class/struct, only serializing code, useful when serializing types in external DLL
@@ -121,12 +116,8 @@ namespace SilentOrbit.ProtocolBuffers
 		/// </summary>
 		public string OptionBase { get; set; }
 
-        /// <summary>
-        /// Initial capacity of allocated MemoryStream when Serializing this object.
-        /// Size in bytes.
-        /// </summary>
-        public int BufferSize { get; set; }
         #endregion
+        
         /// <summary>
         /// Used by types within a namespace
         /// </summary>
@@ -149,7 +140,6 @@ namespace SilentOrbit.ProtocolBuffers
             this.OptionNamespace = null;
             this.OptionAccess = "public";
             this.OptionTriggers = false;
-            this.OptionPreserveUnknown = false;
             this.OptionExternal = false;
 			this.OptionNoPartials = false;
 			this.OptionNoInstancing = false;
@@ -190,6 +180,20 @@ namespace SilentOrbit.ProtocolBuffers
                     return -1;
                 if (WireType == Wire.LengthDelimited)
                     return -1;
+                return -1;
+            }
+        }
+
+        public virtual int MaximumWireSize
+        {
+            get
+            {
+                if (WireType == Wire.Fixed32)
+                    return 4;
+                if (WireType == Wire.Fixed64)
+                    return 8;
+                if (WireType == Wire.Varint)
+                    return 10; // ceilToInt(64 / 7)
                 return -1;
             }
         }

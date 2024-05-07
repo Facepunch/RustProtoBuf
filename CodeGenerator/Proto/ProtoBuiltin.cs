@@ -59,9 +59,45 @@ namespace SilentOrbit.ProtocolBuffers
         {
             get
             {
-                if (ProtoName == ProtoBuiltin.Bool)
+                if (ProtoName == Bool)
                     return 1;
                 return base.WireSize;
+            }
+        }
+
+        public override int MaximumWireSize
+        {
+            get
+            {
+                switch (ProtoName)
+                {
+                    case Bool:
+                        return 1;
+                    case SFixed32:
+                    case Fixed32:
+                    case Float:
+                        return 4;
+                    case SFixed64:
+                    case Fixed64:
+                    case Double:
+                        return 8;
+                    case Int32:
+                    case SInt32:
+                    case UInt32:
+                        return 5; // ceilToInt(32 / 7)
+                    case Int64:
+                    case SInt64:
+                    case UInt64:
+                    case NetworkableId:
+                    case ItemContainerId:
+                    case ItemId:
+                        return 10; // ceilToInt(64 / 7)
+                    case String:
+                    case Bytes:
+                        return 512 * 1024; // technically unbounded but in practice will always have some limit
+                    default:
+                        return base.MaximumWireSize;
+                }
             }
         }
     }

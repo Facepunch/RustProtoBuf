@@ -103,6 +103,7 @@ This file will be overwritten when CodeGenerator is run.");
                 cw.WriteLine("using System.Text;");
                 cw.WriteLine("using System.Buffers;");
                 cw.WriteLine("using System.Collections.Generic;");
+                cw.WriteLine("using SilentOrbit.ProtocolBuffers;");
                 cw.WriteLine();
 
 				cw.WriteLine( "#pragma warning disable 0472, 0162" );
@@ -141,10 +142,10 @@ This file will be overwritten when CodeGenerator is run.");
                 codeWriter.NewLine = "\r\n";
                 ReadCode(codeWriter, "ProtocolParser", true);
                 ReadCode(codeWriter, "ProtocolParserExceptions", false);
-                ReadCode(codeWriter, "ProtocolParserFixed", false);
                 ReadCode(codeWriter, "ProtocolParserKey", false);
                 ReadCode(codeWriter, "ProtocolParserMemory", false);
                 ReadCode(codeWriter, "ProtocolParserVarInt", false);
+                ReadCode(codeWriter, "BufferStream", true);
             }
         }
 

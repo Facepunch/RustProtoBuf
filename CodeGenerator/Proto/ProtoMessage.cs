@@ -77,20 +77,7 @@ namespace SilentOrbit.ProtocolBuffers
         }
 
         /// <summary>
-        /// Return the buffer size of the largest field specified in the .proto file.
-        /// </summary>
-        public int MaxFieldBufferSize()
-        {
-            if (BufferSize > 0)
-                return BufferSize;
-            int size = 0;
-            foreach (var f in Fields.Values)
-                size = Math.Max(size, f.BufferSizeScan());
-            return size;
-        }
-
-        /// <summary>
-        /// If all fields are constant then this messag eis constant too
+        /// If all fields are constant then this message is constant too
         /// </summary>
         public override int WireSize
         {
@@ -101,8 +88,36 @@ namespace SilentOrbit.ProtocolBuffers
                 {
                     if (f.ProtoType.WireSize < 0)
                         return -1;
-                    totalSize += f.ProtoType.WireSize;
+                    totalSize += 2 + f.ProtoType.WireSize;
                 }
+                return totalSize;
+            }
+        }
+
+        private int? _maxWireSizeCache;
+        public override int MaximumWireSize
+        {
+            get
+            {
+                if (_maxWireSizeCache != null)
+                    return _maxWireSizeCache.Value;
+                
+                var totalSize = 0;
+                foreach (var f in Fields.Values)
+                {
+                    var typeSize = f.Rule != FieldRule.Repeated
+                        ? f.ProtoType.MaximumWireSize
+                        : 512_000; // assume a safe upper bound for repeated fields 
+                    if (typeSize < -1)
+                    {
+                        totalSize = -1;
+                        break;
+                    }
+                    
+                    totalSize += 2 + typeSize; // allow up to two bytes for each field's tag
+                }
+
+                _maxWireSizeCache = totalSize;
                 return totalSize;
             }
         }
