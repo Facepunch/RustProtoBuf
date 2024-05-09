@@ -507,15 +507,21 @@ namespace SilentOrbit.ProtocolBuffers
 
                 if (lengthByteCount > 1)
                 {
+                    cw.IfBracket($"writtenBytes{f.ID} < {lengthByteCount}");
+                    
                     if (lengthByteCount == 2)
                     {
-                        cw.WriteLine($"if (writtenBytes{f.ID} == 1) lengthSpan{f.ID}[1] = 0x00;");
+                        cw.WriteLine($"lengthSpan{f.ID}[0] |= 0x80;");
+                        cw.WriteLine($"lengthSpan{f.ID}[1] = 0x00;");
                     }
                     else
                     {
-                        cw.WriteLine($"for (; writtenBytes{f.ID} < {lengthByteCount - 1}; writtenBytes{f.ID}++) lengthSpan{f.ID}[writtenBytes{f.ID}] = 0x80;");
-                        cw.WriteLine($"if (writtenBytes{f.ID} == {lengthByteCount - 1}) lengthSpan{f.ID}[{lengthByteCount - 1}] = 0x00;");
+                        cw.WriteLine($"lengthSpan{f.ID}[writtenBytes{f.ID} - 1] |= 0x80;");
+                        cw.WriteLine($"while (writtenBytes{f.ID} < {lengthByteCount - 1}) lengthSpan{f.ID}[writtenBytes{f.ID}++] = 0x80;");
+                        cw.WriteLine($"lengthSpan{f.ID}[{lengthByteCount - 1}] = 0x00;");
                     }
+                    
+                    cw.EndBracket();
                 }
                 
                 return cw.Code;

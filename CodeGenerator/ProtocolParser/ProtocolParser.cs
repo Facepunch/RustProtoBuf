@@ -23,6 +23,8 @@ namespace SilentOrbit.ProtocolBuffers
         where T : IProto
     {
         void WriteToStreamDelta( BufferStream stream, T previousProto );
+        
+        void CopyTo( T other );
     }
     
     public static partial class ProtocolParser
