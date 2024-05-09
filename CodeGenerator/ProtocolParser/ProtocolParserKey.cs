@@ -37,44 +37,44 @@ namespace SilentOrbit.ProtocolBuffers
     public static partial class ProtocolParser
     {
 
-        public static Key ReadKey(ref BufferStream stream)
+        public static Key ReadKey(BufferStream stream)
         {
-            uint n = ReadUInt32(ref stream);
+            uint n = ReadUInt32(stream);
             return new Key(n >> 3, (Wire)(n & 0x07));
         }
 
-        public static Key ReadKey(byte firstByte, ref BufferStream stream)
+        public static Key ReadKey(byte firstByte, BufferStream stream)
         {
             if (firstByte < 128)
                 return new Key((uint)(firstByte >> 3), (Wire)(firstByte & 0x07));
-            uint fieldID = ((uint)ReadUInt32(ref stream) << 4) | ((uint)(firstByte >> 3) & 0x0F);
+            uint fieldID = ((uint)ReadUInt32(stream) << 4) | ((uint)(firstByte >> 3) & 0x0F);
             return new Key(fieldID, (Wire)(firstByte & 0x07));
         }
 
-        public static void WriteKey(ref BufferStream stream, Key key)
+        public static void WriteKey(BufferStream stream, Key key)
         {
             uint n = (key.Field << 3) | ((uint)key.WireType);
-            WriteUInt32(ref stream, n);
+            WriteUInt32(stream, n);
         }
 
         /// <summary>
         /// Seek past the value for the previously read key.
         /// </summary>
-        public static void SkipKey(ref BufferStream stream, Key key)
+        public static void SkipKey(BufferStream stream, Key key)
         {
             switch (key.WireType)
             {
                 case Wire.Fixed32:
-                    stream.Bytes(4);
+                    stream.Skip(4);
                     return;
                 case Wire.Fixed64:
-                    stream.Bytes(8);
+                    stream.Skip(8);
                     return;
                 case Wire.LengthDelimited:
-                    stream.Bytes((int)ProtocolParser.ReadUInt32(ref stream));
+                    stream.Skip((int)ProtocolParser.ReadUInt32(stream));
                     return;
                 case Wire.Varint:
-                    ProtocolParser.ReadSkipVarInt(ref stream);
+                    ProtocolParser.ReadSkipVarInt(stream);
                     return;
                 default:
                     throw new NotImplementedException("Unknown wire type: " + key.WireType);

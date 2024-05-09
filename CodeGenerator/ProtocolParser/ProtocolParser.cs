@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Facepunch.Extend;
+using UnityEngine;
 using UnityEngine.Profiling;
 using SilentOrbit.ProtocolBuffers;
 
@@ -13,15 +14,15 @@ namespace SilentOrbit.ProtocolBuffers
 {
     public interface IProto
     {
-        void WriteToStream( ref BufferStream stream );
-        void ReadFromStream( ref BufferStream stream, bool isDelta = false );
-        void ReadFromStream( ref BufferStream stream, int size, bool isDelta = false );
+        void WriteToStream( BufferStream stream );
+        void ReadFromStream( BufferStream stream, bool isDelta = false );
+        void ReadFromStream( BufferStream stream, int size, bool isDelta = false );
     }
 
     public interface IProto<in T> : IProto
         where T : IProto
     {
-        void WriteToStreamDelta( ref BufferStream stream, T previousProto );
+        void WriteToStreamDelta( BufferStream stream, T previousProto );
     }
     
     public static partial class ProtocolParser
@@ -33,37 +34,27 @@ namespace SilentOrbit.ProtocolBuffers
         
         private static byte[] GetStaticBuffer() => _staticBuffer ??= new byte[staticBufferSize];
 
-        public static readonly Facepunch.ArrayPool<byte> ArrayPool = new(128 * 1024 * 1024);
+        public static int ReadFixedInt32( BufferStream stream ) => stream.Read<int>();
 
-        public static int ReadFixedInt32( ref BufferStream stream ) =>
-            stream.Data<int>();
-
-        public static void WriteFixedInt32( ref BufferStream stream, int i ) =>
-            stream.Data<int>() = i;
+        public static void WriteFixedInt32( BufferStream stream, int i ) => stream.Write<int>(i);
         
-        public static long ReadFixedInt64( ref BufferStream stream ) =>
-            stream.Data<long>();
+        public static long ReadFixedInt64( BufferStream stream ) => stream.Read<long>();
 
-        public static void WriteFixedInt64( ref BufferStream stream, long i ) =>
-            stream.Data<long>() = i;
+        public static void WriteFixedInt64( BufferStream stream, long i ) => stream.Write<long>(i);
         
-        public static float ReadSingle( ref BufferStream stream ) =>
-            stream.Data<float>();
+        public static float ReadSingle( BufferStream stream ) => stream.Read<float>();
 
-        public static void WriteSingle( ref BufferStream stream, float f ) =>
-            stream.Data<float>() = f;
+        public static void WriteSingle( BufferStream stream, float f ) => stream.Write<float>(f);
 
-        public static double ReadDouble( ref BufferStream stream ) =>
-            stream.Data<double>();
+        public static double ReadDouble( BufferStream stream ) => stream.Read<double>();
 
-        public static void WriteDouble( ref BufferStream stream, double f ) =>
-            stream.Data<double>() = f;
+        public static void WriteDouble( BufferStream stream, double f ) => stream.Write<double>(f);
 
-        public static unsafe string ReadString( ref BufferStream stream )
+        public static unsafe string ReadString( BufferStream stream )
         {
             Profiler.BeginSample( "ProtoParser.ReadString" );
 			
-            int length = (int)ReadUInt32( ref stream );
+            int length = (int)ReadUInt32( stream );
             if ( length <= 0 )
             {
                 Profiler.EndSample();
@@ -71,7 +62,7 @@ namespace SilentOrbit.ProtocolBuffers
             }
 
             string str;
-            var bytes = stream.Bytes( length );
+            var bytes = stream.GetRange( length ).GetSpan();
             fixed ( byte* ptr = &bytes[0] )
             {
                 str = Encoding.UTF8.GetString( ptr, length );
@@ -82,18 +73,18 @@ namespace SilentOrbit.ProtocolBuffers
             return str;
         }
 
-        public static void WriteString( ref BufferStream stream, string val )
+        public static void WriteString( BufferStream stream, string val )
         {
             Profiler.BeginSample( "ProtoParser.WriteString" );
 
             var buffer = GetStaticBuffer();
             var len = Encoding.UTF8.GetBytes( val, 0, val.Length, buffer, 0 );
 
-            WriteUInt32( ref stream, (uint)len );
+            WriteUInt32( stream, (uint)len );
 
             if ( len > 0 )
             {
-                new Span<byte>( buffer, 0, len ).CopyTo( stream.Bytes( len ) );
+                new Span<byte>( buffer, 0, len ).CopyTo( stream.GetRange( len ).GetSpan() );
             }
             
             Profiler.EndSample();
@@ -102,16 +93,16 @@ namespace SilentOrbit.ProtocolBuffers
         /// <summary>
         /// Reads a length delimited byte array into a new byte[]
         /// </summary>
-        public static byte[] ReadBytes( ref BufferStream stream )
+        public static byte[] ReadBytes( BufferStream stream )
         {
             Profiler.BeginSample( "ProtoParser.ReadBytes" );
 
             // Only limit length when reading from network
-            int length = (int)ReadUInt32( ref stream );
+            int length = (int)ReadUInt32( stream );
 
             //Bytes
             byte[] buffer = new byte[ length ];
-            ReadBytesInto( ref stream, buffer, length );
+            ReadBytesInto( stream, buffer, length );
             Profiler.EndSample();
 
             return buffer;
@@ -122,62 +113,62 @@ namespace SilentOrbit.ProtocolBuffers
         /// </summary>
         /// <param name="stream"></param>
         /// <returns></returns>
-        public static ArraySegment<byte> ReadPooledBytes( ref BufferStream stream )
+        public static ArraySegment<byte> ReadPooledBytes( BufferStream stream )
         {
             Profiler.BeginSample( "ProtoParser.ReadPooledBytes" );
 
             // Only limit length when reading from network
-            int length = (int)ReadUInt32( ref stream );
+            int length = (int)ReadUInt32( stream );
 
             //Bytes
-            byte[] buffer = ArrayPool.Rent( length );
-            ReadBytesInto( ref stream, buffer, length );
+            byte[] buffer = BufferStream.Shared.ArrayPool.Rent( length );
+            ReadBytesInto( stream, buffer, length );
             Profiler.EndSample();
 
             return new ArraySegment<byte>( buffer, 0, length );
         }
 
-        private static void ReadBytesInto( ref BufferStream stream, byte[] buffer, int length )
+        private static void ReadBytesInto( BufferStream stream, byte[] buffer, int length )
         {
-            stream.Bytes( length ).CopyTo( buffer );
+            stream.GetRange( length ).GetSpan().CopyTo( buffer );
         }
 
         /// <summary>
         /// Skip the next varint length prefixed bytes.
         /// Alternative to ReadBytes when the data is not of interest.
         /// </summary>
-        public static void SkipBytes( ref BufferStream stream )
+        public static void SkipBytes( BufferStream stream )
         {
-            int length = (int)ReadUInt32( ref stream );
-            stream.Bytes( length );
+            int length = (int)ReadUInt32( stream );
+            stream.Skip( length );
         }
         
         /// <summary>
         /// Writes length delimited byte array
         /// </summary>
-        public static void WriteBytes( ref BufferStream stream, byte[] val )
+        public static void WriteBytes( BufferStream stream, byte[] val )
         {
-            WriteUInt32( ref stream, (uint)val.Length );
-            new Span<byte>( val ).CopyTo( stream.Bytes( val.Length ) );
+            WriteUInt32( stream, (uint)val.Length );
+            new Span<byte>( val ).CopyTo( stream.GetRange( val.Length ).GetSpan() );
         }
 
-        public static void WritePooledBytes( ref BufferStream stream, ArraySegment<byte> segment )
+        public static void WritePooledBytes( BufferStream stream, ArraySegment<byte> segment )
         {
             if (segment.Array == null)
             {
-                WriteUInt32( ref stream, 0 );
+                WriteUInt32( stream, 0 );
                 return;
             }
 
-            WriteUInt32( ref stream, (uint)segment.Count );
-            new Span<byte>( segment.Array, segment.Offset, segment.Count ).CopyTo( stream.Bytes( segment.Count ) );
+            WriteUInt32( stream, (uint)segment.Count );
+            new Span<byte>( segment.Array, segment.Offset, segment.Count ).CopyTo( stream.GetRange( segment.Count ).GetSpan() );
         }
     }
 }
 
 public static class ProtoStreamExtensions
 {
-    public static void WriteToStream(this SilentOrbit.ProtocolBuffers.IProto proto, Stream stream, int maxLength = 1 * 1024 * 1024)
+    public static void WriteToStream(this SilentOrbit.ProtocolBuffers.IProto proto, Stream stream)
     {
         if (proto == null)
         {
@@ -189,11 +180,11 @@ public static class ProtoStreamExtensions
             throw new ArgumentNullException(nameof(stream));
         }
 
-        var buffer = ProtocolParser.ArrayPool.Rent(maxLength);
-        var writer = new BufferStream(buffer);
-        proto.WriteToStream(ref writer);
-        stream.Write(buffer, 0, writer.Position);
-        ProtocolParser.ArrayPool.Return(buffer);
+        using var writer = Facepunch.Pool.Get<BufferStream>().Initialize();
+        proto.WriteToStream(writer);
+        
+        var buffer = writer.GetBuffer();
+        stream.Write(buffer.Array, buffer.Offset, buffer.Count);
     }
 
     public static void ReadFromStream(this SilentOrbit.ProtocolBuffers.IProto proto, Stream stream, bool isDelta = false)
@@ -211,9 +202,10 @@ public static class ProtoStreamExtensions
         var ms = Facepunch.Pool.Get<MemoryStream>();
         stream.CopyTo(ms);
         var bytes = ms.ToArray();
-        var reader = new BufferStream(bytes);
-        proto.ReadFromStream(ref reader, isDelta);
         Facepunch.Pool.FreeMemoryStream(ref ms);
+        
+        using var reader = Facepunch.Pool.Get<BufferStream>().Initialize(bytes);
+        proto.ReadFromStream(reader, isDelta);
     }
 
     public static void ReadFromStream(this SilentOrbit.ProtocolBuffers.IProto proto, Stream stream, int length, bool isDelta = false)
@@ -228,7 +220,7 @@ public static class ProtoStreamExtensions
             throw new ArgumentNullException(nameof(stream));
         }
 
-        var buffer = ProtocolParser.ArrayPool.Rent(4096);
+        var buffer = BufferStream.Shared.ArrayPool.Rent(4096);
         var ms = Facepunch.Pool.Get<MemoryStream>();
         var remaining = length;
         while (remaining > 0)
@@ -242,27 +234,28 @@ public static class ProtoStreamExtensions
             remaining -= bytesRead;
             ms.Write(buffer, 0, bytesRead);
         }
-        ProtocolParser.ArrayPool.Return(buffer);
+        BufferStream.Shared.ArrayPool.Return(buffer);
         
         var bytes = ms.ToArray();
-        var reader = new BufferStream(bytes);
-        proto.ReadFromStream(ref reader, isDelta);
         Facepunch.Pool.FreeMemoryStream(ref ms);
+        
+        using var reader = Facepunch.Pool.Get<BufferStream>().Initialize(bytes);
+        proto.ReadFromStream(reader, isDelta);
     }
     
-    public static byte[] ToProtoBytes(this SilentOrbit.ProtocolBuffers.IProto proto, int maxLength = 1 * 1024 * 1024)
+    public static byte[] ToProtoBytes(this SilentOrbit.ProtocolBuffers.IProto proto)
     {
         if (proto == null)
         {
             throw new ArgumentNullException(nameof(proto));
         }
 
-        var buffer = ProtocolParser.ArrayPool.Rent(maxLength);
-        var writer = new BufferStream(buffer);
-        proto.WriteToStream(ref writer);
+        using var writer = Facepunch.Pool.Get<BufferStream>().Initialize();
+        proto.WriteToStream(writer);
+        
+        var buffer = writer.GetBuffer();
         var bytes = new byte[writer.Position];
-        Buffer.BlockCopy(buffer, 0, bytes, 0, bytes.Length);
-        ProtocolParser.ArrayPool.Return(buffer);
+        new Span<byte>(buffer.Array, buffer.Offset, buffer.Count).CopyTo(bytes);
         return bytes;
     }
 }

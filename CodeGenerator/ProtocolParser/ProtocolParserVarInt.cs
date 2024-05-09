@@ -8,7 +8,7 @@ namespace SilentOrbit.ProtocolBuffers
         /// <summary>
         /// Reads past a varint for an unknown field.
         /// </summary>
-        public static void ReadSkipVarInt(ref BufferStream stream)
+        public static void ReadSkipVarInt(BufferStream stream)
         {
             while (true)
             {
@@ -25,7 +25,7 @@ namespace SilentOrbit.ProtocolBuffers
         /// Unsigned VarInt format
         /// Do not use to read int32, use ReadUint64 for that.
         /// </summary>
-        public static uint ReadUInt32( byte[] array, int pos, out int length )
+        public static uint ReadUInt32( Span<byte> array, int pos, out int length )
         {
             int b;
             uint val = 0;
@@ -60,7 +60,7 @@ namespace SilentOrbit.ProtocolBuffers
         /// <summary>
         /// Unsigned VarInt format
         /// </summary>
-        public static int WriteUInt32( uint val, byte[] array, int pos )
+        public static int WriteUInt32( uint val, Span<byte> array, int pos )
         {
             int length = 0;
             byte b;
@@ -88,32 +88,32 @@ namespace SilentOrbit.ProtocolBuffers
         /// <summary>
         /// Zig-zag signed VarInt format
         /// </summary>
-        public static int ReadZInt32(ref BufferStream stream)
+        public static int ReadZInt32(BufferStream stream)
         {
-            uint val = ReadUInt32(ref stream);
+            uint val = ReadUInt32(stream);
             return (int)(val >> 1) ^ ((int)(val << 31) >> 31);
         }
 
         /// <summary>
         /// Zig-zag signed VarInt format
         /// </summary>
-        public static void WriteZInt32(ref BufferStream stream, int val)
+        public static void WriteZInt32(BufferStream stream, int val)
         {
-            WriteUInt32(ref stream, (uint)((val << 1) ^ (val >> 31)));
+            WriteUInt32(stream, (uint)((val << 1) ^ (val >> 31)));
         }
 
         /// <summary>
         /// Unsigned VarInt format
         /// Do not use to read int32, use ReadUint64 for that.
         /// </summary>
-        public static uint ReadUInt32(ref BufferStream stream)
+        public static uint ReadUInt32(BufferStream stream)
         {
             int b;
             uint val = 0;
 
             for (int n = 0; n < 5; n++)
             {
-                b = stream.Byte();
+                b = stream.ReadByte();
                 if (b < 0)
                     throw new IOException("Stream ended too early");
 
@@ -134,7 +134,7 @@ namespace SilentOrbit.ProtocolBuffers
         /// <summary>
         /// Unsigned VarInt format
         /// </summary>
-        public static void WriteUInt32(ref BufferStream stream, uint val)
+        public static void WriteUInt32(BufferStream stream, uint val)
         {
             byte b;
             while (true)
@@ -143,13 +143,13 @@ namespace SilentOrbit.ProtocolBuffers
                 val = val >> 7;
                 if (val == 0)
                 {
-                    stream.Byte() = b;
+                    stream.WriteByte(b);
                     break;
                 }
                 else
                 {
                     b |= 0x80;
-                    stream.Byte() = b;
+                    stream.WriteByte(b);
                 }
             }
         }
@@ -161,24 +161,24 @@ namespace SilentOrbit.ProtocolBuffers
         /// <summary>
         /// Zig-zag signed VarInt format
         /// </summary>
-        public static long ReadZInt64(ref BufferStream stream)
+        public static long ReadZInt64(BufferStream stream)
         {
-            ulong val = ReadUInt64(ref stream);
+            ulong val = ReadUInt64(stream);
             return (long)(val >> 1) ^ ((long)(val << 63) >> 63);
         }
 
         /// <summary>
         /// Zig-zag signed VarInt format
         /// </summary>
-        public static void WriteZInt64(ref BufferStream stream, long val)
+        public static void WriteZInt64(BufferStream stream, long val)
         {
-            WriteUInt64(ref stream, (ulong)((val << 1) ^ (val >> 63)));
+            WriteUInt64(stream, (ulong)((val << 1) ^ (val >> 63)));
         }
 
         /// <summary>
         /// Unsigned VarInt format
         /// </summary>
-        public static ulong ReadUInt64(ref BufferStream stream)
+        public static ulong ReadUInt64(BufferStream stream)
         {
             int b;
             ulong val = 0;
@@ -206,7 +206,7 @@ namespace SilentOrbit.ProtocolBuffers
         /// <summary>
         /// Unsigned VarInt format
         /// </summary>
-        public static void WriteUInt64(ref BufferStream stream, ulong val)
+        public static void WriteUInt64(BufferStream stream, ulong val)
         {
             byte b;
             while (true)
@@ -215,13 +215,13 @@ namespace SilentOrbit.ProtocolBuffers
                 val = val >> 7;
                 if (val == 0)
                 {
-                    stream.Byte() = b;
+                    stream.WriteByte(b);
                     break;
                 }
                 else
                 {
                     b |= 0x80;
-                    stream.Byte() = b;
+                    stream.WriteByte(b);
                 }
             }
         }
@@ -255,7 +255,7 @@ namespace SilentOrbit.ProtocolBuffers
 
         #region Varint: bool
 
-        public static bool ReadBool(ref BufferStream stream)
+        public static bool ReadBool(BufferStream stream)
         {
             int b = stream.ReadByte();
             if (b < 0)
@@ -267,9 +267,9 @@ namespace SilentOrbit.ProtocolBuffers
             throw new ProtocolBufferException("Invalid boolean value");
         }
 
-        public static void WriteBool(ref BufferStream stream, bool val)
+        public static void WriteBool(BufferStream stream, bool val)
         {
-            stream.Byte() = val ? (byte)1 : (byte)0;
+            stream.WriteByte(val ? (byte)1 : (byte)0);
         }
 
         #endregion
