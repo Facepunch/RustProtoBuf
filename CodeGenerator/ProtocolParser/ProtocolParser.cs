@@ -222,27 +222,30 @@ public static class ProtoStreamExtensions
             throw new ArgumentNullException(nameof(stream));
         }
 
-        var buffer = BufferStream.Shared.ArrayPool.Rent(4096);
-        var ms = Facepunch.Pool.Get<MemoryStream>();
+        if (length <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(length));
+        }
+
+        var buffer = BufferStream.Shared.ArrayPool.Rent(length);
+        var offset = 0;
         var remaining = length;
         while (remaining > 0)
         {
-            var bytesRead = stream.Read(buffer, 0, Math.Min(remaining, buffer.Length));
+            var bytesRead = stream.Read(buffer, offset, remaining);
             if (bytesRead <= 0)
             {
                 throw new InvalidOperationException("Unexpected end of stream");
             }
 
+            offset += bytesRead;
             remaining -= bytesRead;
-            ms.Write(buffer, 0, bytesRead);
         }
-        BufferStream.Shared.ArrayPool.Return(buffer);
         
-        var bytes = ms.ToArray();
-        Facepunch.Pool.FreeMemoryStream(ref ms);
-        
-        using var reader = Facepunch.Pool.Get<BufferStream>().Initialize(bytes);
+        using var reader = Facepunch.Pool.Get<BufferStream>().Initialize(buffer, length);
         proto.ReadFromStream(reader, isDelta);
+        
+        BufferStream.Shared.ArrayPool.Return(buffer);
     }
     
     public static byte[] ToProtoBytes(this SilentOrbit.ProtocolBuffers.IProto proto)
