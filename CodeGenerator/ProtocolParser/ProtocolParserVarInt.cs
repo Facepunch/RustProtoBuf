@@ -269,6 +269,41 @@ namespace SilentOrbit.ProtocolBuffers
         /// <summary>
         /// Unsigned VarInt format
         /// </summary>
+        public static ulong ReadUInt64(byte[] array, int pos, out int length)
+        {
+            ulong val = 0;
+            length = 0;
+
+            for (byte n = 0; n < 10; n++)
+            {
+                length++;
+
+                if(pos >= array.Length)
+                {
+                    break;
+                }
+
+                byte b = array[pos++];
+                if (b < 0)
+                    throw new IOException("Stream ended too early");
+
+                //Check that it fits in 64 bits
+                if ((n == 9) && (b & 0xFE) != 0)
+                    throw new ProtocolBufferException("Got larger VarInt than 64 bit unsigned");
+                //End of check
+
+                if ((b & 0x80) == 0)
+                    return val | (ulong) b << (7 * n);
+
+                val |= (ulong) (b & 0x7F) << (7 * n);
+            }
+
+            throw new ProtocolBufferException("Got larger VarInt than 64 bit unsigned");
+        }
+
+        /// <summary>
+        /// Unsigned VarInt format
+        /// </summary>
         public static void WriteUInt64(Stream stream, ulong val)
         {
             byte b;
@@ -287,6 +322,31 @@ namespace SilentOrbit.ProtocolBuffers
                     stream.WriteByte(b);
                 }
             }
+        }
+
+        /// <summary>
+        /// Unsigned VarInt format
+        /// </summary>
+        public static int WriteUInt64(ulong val, byte[] buffer, int pos)
+        {
+            int len = 0;
+            while (true)
+            {
+                len++;
+                byte b = (byte)(val & 0x7F);
+                val = val >> 7;
+                if (val == 0)
+                {
+                    buffer[pos] = b;
+                    break;
+                }
+                else
+                {
+                    b |= 0x80;
+                    buffer[pos++] = b;
+                }
+            }
+            return len;
         }
 
         #endregion
