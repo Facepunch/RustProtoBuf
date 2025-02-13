@@ -170,7 +170,7 @@ namespace SilentOrbit.ProtocolBuffers
 
 public static class ProtoStreamExtensions
 {
-    public static void WriteToStream(this SilentOrbit.ProtocolBuffers.IProto proto, Stream stream)
+    public static void WriteToStream(this SilentOrbit.ProtocolBuffers.IProto proto, Stream stream, bool lengthDelimited = false)
     {
         if (proto == null)
         {
@@ -183,10 +183,27 @@ public static class ProtoStreamExtensions
         }
 
         using var writer = Facepunch.Pool.Get<BufferStream>().Initialize();
+
+        BufferStream.RangeHandle lengthRange = default;
+        if (lengthDelimited)
+        {
+            lengthRange = writer.GetRange(3); // 21 bits max size (2 MiB)
+        }
+
+        var start = writer.Position;
         proto.WriteToStream(writer);
-        
-        var buffer = writer.GetBuffer();
-        stream.Write(buffer.Array, buffer.Offset, buffer.Count);
+
+        if (lengthDelimited)
+        {
+            var length = writer.Position - start;
+            ProtocolParser.WriteUInt32((uint)length, lengthRange.GetSpan(), 0);
+        }
+
+        if (writer.Length > 0)
+        {
+            var buffer = writer.GetBuffer();
+            stream.Write(buffer.Array, buffer.Offset, buffer.Count);
+        }
     }
 
     public static void ReadFromStream(this SilentOrbit.ProtocolBuffers.IProto proto, Stream stream, bool isDelta = false)
@@ -200,14 +217,32 @@ public static class ProtoStreamExtensions
         {
             throw new ArgumentNullException(nameof(stream));
         }
+
+        const int maxSize = 1 * 1024 * 1024; // 1 MiB
         
-        var ms = Facepunch.Pool.Get<MemoryStream>();
-        stream.CopyTo(ms);
-        var bytes = ms.ToArray();
-        Facepunch.Pool.FreeMemoryStream(ref ms);
-        
-        using var reader = Facepunch.Pool.Get<BufferStream>().Initialize(bytes);
+        var startPosition = stream.Position;
+		
+        var buffer = BufferStream.Shared.ArrayPool.Rent(maxSize);
+        var offset = 0;
+        var remaining = maxSize;
+        while (remaining > 0)
+        {
+            var bytesRead = stream.Read(buffer, offset, remaining);
+            if (bytesRead <= 0)
+            {
+                break;
+            }
+
+            offset += bytesRead;
+            remaining -= bytesRead;
+        }
+		
+        using var reader = Facepunch.Pool.Get<BufferStream>().Initialize(buffer, offset);
         proto.ReadFromStream(reader, isDelta);
+        BufferStream.Shared.ArrayPool.Return(buffer);
+        
+        var protoReadLength = reader.Position;
+        stream.Position = startPosition + protoReadLength;
     }
 
     public static void ReadFromStream(this SilentOrbit.ProtocolBuffers.IProto proto, Stream stream, int length, bool isDelta = false)
@@ -246,6 +281,22 @@ public static class ProtoStreamExtensions
         proto.ReadFromStream(reader, isDelta);
         
         BufferStream.Shared.ArrayPool.Return(buffer);
+    }
+
+    public static void ReadFromStreamLengthDelimited(this SilentOrbit.ProtocolBuffers.IProto proto, Stream stream, bool isDelta = false)
+    {
+        if (proto == null)
+        {
+            throw new ArgumentNullException(nameof(proto));
+        }
+
+        if (stream == null)
+        {
+            throw new ArgumentNullException(nameof(stream));
+        }
+        
+        var length = (int)ProtocolParser.ReadUInt32(stream);
+        ReadFromStream(proto, stream, length, isDelta);
     }
     
     public static byte[] ToProtoBytes(this SilentOrbit.ProtocolBuffers.IProto proto)

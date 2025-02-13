@@ -1,4 +1,4 @@
-﻿public sealed partial class BufferStream : IDisposable
+﻿public sealed partial class BufferStream : IDisposable, Facepunch.Pool.IPooled
 {
     // Putting this in a nested class to avoid IL2CPP overhead for classes with static constructors
     public static class Shared
@@ -96,6 +96,26 @@
 
         var instance = this;
         Facepunch.Pool.Free(ref instance);
+    }
+
+    void Facepunch.Pool.IPooled.EnterPool()
+    {
+        if (_isBufferOwned && _buffer != null)
+        {
+            Shared.ArrayPool.Return(_buffer);
+        }
+		
+        _buffer = null;
+    }
+    
+    void Facepunch.Pool.IPooled.LeavePool()
+    {
+    }
+
+    public void Clear()
+    {
+        _length = 0;
+        _position = 0;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

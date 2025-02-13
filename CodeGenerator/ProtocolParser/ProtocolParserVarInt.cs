@@ -154,6 +154,58 @@ namespace SilentOrbit.ProtocolBuffers
             }
         }
 
+        /// <summary>
+        /// Unsigned VarInt format
+        /// Do not use to read int32, use ReadUint64 for that.
+        /// </summary>
+        public static uint ReadUInt32(Stream stream)
+        {
+            int b;
+            uint val = 0;
+
+            for (int n = 0; n < 5; n++)
+            {
+                b = stream.ReadByte();
+                if (b < 0)
+                    throw new IOException("Stream ended too early");
+
+                //Check that it fits in 32 bits
+                if ((n == 4) && (b & 0xF0) != 0)
+                    throw new ProtocolBufferException("Got larger VarInt than 32bit unsigned");
+                //End of check
+
+                if ((b & 0x80) == 0)
+                    return val | (uint)b << (7 * n);
+
+                val |= (uint)(b & 0x7F) << (7 * n);
+            }
+
+            throw new ProtocolBufferException("Got larger VarInt than 32bit unsigned");
+        }
+
+        /// <summary>
+        /// Unsigned VarInt format
+        /// </summary>
+        public static void WriteUInt32(Stream stream, uint val)
+        {
+            byte b;
+            while (true)
+            {
+                b = (byte)(val & 0x7F);
+                val = val >> 7;
+                if (val == 0)
+                {
+                    stream.WriteByte(b);
+                    break;
+                }
+                else
+                {
+                    b |= 0x80;
+                    stream.WriteByte(b);
+                }
+            }
+        }
+
         #endregion
 
         #region VarInt: int64, UInt64, SInt64
@@ -229,7 +281,7 @@ namespace SilentOrbit.ProtocolBuffers
         /// <summary>
         /// Unsigned VarInt format
         /// </summary>
-        public static int WriteUInt64(ulong val, byte[] buffer, int pos)
+        public static int WriteUInt64(ulong val, Span<byte> buffer, int pos)
         {
             int len = 0;
             while (true)
