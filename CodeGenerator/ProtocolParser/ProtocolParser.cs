@@ -17,9 +17,8 @@ namespace SilentOrbit.ProtocolBuffers
 
     public static partial class ProtocolParser
     {
-        // Seperate copy of buffer per thread
-        [ThreadStatic]
-        private static byte[] staticBuffer = new byte[ 1024 * 128 ];
+        // Thread static does not support intializers use threadlocal and access using staticBuffer.Value
+        private static ThreadLocal<byte[]> staticBuffer = new ThreadLocal<byte[]>(() => new byte[ 1024 * 128 ]);
 
         public static float ReadSingle( Stream stream )
         {
@@ -28,8 +27,8 @@ namespace SilentOrbit.ProtocolBuffers
                 return reader.Float();
             }
 
-            stream.Read( staticBuffer, 0, 4 );
-            return staticBuffer.ReadUnsafe<float>();
+            stream.Read( staticBuffer.Value, 0, 4 );
+            return staticBuffer.Value.ReadUnsafe<float>();
         }
 
         public static void WriteSingle( Stream stream, float f )
@@ -40,8 +39,8 @@ namespace SilentOrbit.ProtocolBuffers
                 return;
             }
 
-            staticBuffer.WriteUnsafe( f );
-            stream.Write( staticBuffer, 0, 4 );
+            staticBuffer.Value.WriteUnsafe( f );
+            stream.Write( staticBuffer.Value, 0, 4 );
         }
 
         public static double ReadDouble( Stream stream )
@@ -51,8 +50,8 @@ namespace SilentOrbit.ProtocolBuffers
                 return reader.Double();
             }
 
-            stream.Read( staticBuffer, 0, 8 );
-            return staticBuffer.ReadUnsafe<double>();
+            stream.Read( staticBuffer.Value, 0, 8 );
+            return staticBuffer.Value.ReadUnsafe<double>();
         }
 
         public static void WriteDouble( Stream stream, double f )
@@ -63,8 +62,8 @@ namespace SilentOrbit.ProtocolBuffers
                 return;
             }
 
-            staticBuffer.WriteUnsafe( f );
-            stream.Write( staticBuffer, 0, 8 );
+            staticBuffer.Value.WriteUnsafe( f );
+            stream.Write( staticBuffer.Value, 0, 8 );
         }
 
         public static string ReadString( Stream stream )
@@ -81,7 +80,7 @@ namespace SilentOrbit.ProtocolBuffers
 
             string str;
 
-            if (length >= staticBuffer.Length)
+            if (length >= staticBuffer.Value.Length)
             {
                 Profiler.BeginSample( "new Buffer" );
                 byte[] buffer = new byte[ length ];
@@ -91,8 +90,8 @@ namespace SilentOrbit.ProtocolBuffers
             }
             else
             {
-                stream.Read( staticBuffer, 0, length );
-                str = Encoding.UTF8.GetString( staticBuffer, 0, length );
+                stream.Read( staticBuffer.Value, 0, length );
+                str = Encoding.UTF8.GetString( staticBuffer.Value, 0, length );
             }
 
             Profiler.EndSample();
@@ -109,10 +108,10 @@ namespace SilentOrbit.ProtocolBuffers
             }
 
             Profiler.BeginSample( "ProtoParser.WriteString" );
-            var len = Encoding.UTF8.GetBytes( val, 0, val.Length, staticBuffer, 0 );
+            var len = Encoding.UTF8.GetBytes( val, 0, val.Length, staticBuffer.Value, 0 );
 
             WriteUInt32( stream, (uint)len );
-            stream.Write( staticBuffer, 0, len );
+            stream.Write( staticBuffer.Value, 0, len );
             Profiler.EndSample();
         }
 
