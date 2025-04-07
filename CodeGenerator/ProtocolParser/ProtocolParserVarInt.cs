@@ -281,6 +281,37 @@ namespace SilentOrbit.ProtocolBuffers
         /// <summary>
         /// Unsigned VarInt format
         /// </summary>
+        public static ulong ReadUInt64(Span<byte> array, int pos, out int length)
+        {
+            int b;
+            ulong val = 0;
+            length = 0;
+
+            for (int n = 0; n < 10; n++)
+            {
+                length++;
+                
+                b = array[ pos++ ];
+                if (b < 0)
+                    throw new IOException( "Stream ended too early" );
+
+                //Check that it fits in 64 bits
+                if ((n == 9) && (b & 0xFE) != 0)
+                    throw new ProtocolBufferException("Got larger VarInt than 64 bit unsigned");
+                //End of check
+
+                if ((b & 0x80) == 0)
+                    return val | (ulong)b << (7 * n);
+
+                val |= (ulong)(b & 0x7F) << (7 * n);
+            }
+
+            throw new ProtocolBufferException("Got larger VarInt than 64 bit unsigned");
+        }
+
+        /// <summary>
+        /// Unsigned VarInt format
+        /// </summary>
         public static int WriteUInt64(ulong val, Span<byte> buffer, int pos)
         {
             int len = 0;
