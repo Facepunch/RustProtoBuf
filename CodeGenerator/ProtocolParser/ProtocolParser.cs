@@ -170,7 +170,7 @@ namespace SilentOrbit.ProtocolBuffers
 
 public static class ProtoStreamExtensions
 {
-    public static void WriteToStream(this SilentOrbit.ProtocolBuffers.IProto proto, Stream stream, bool lengthDelimited = false)
+    public static void WriteToStream(this SilentOrbit.ProtocolBuffers.IProto proto, Stream stream, bool lengthDelimited = false, int maxSizeHint = 2 * 1024 * 1024)
     {
         if (proto == null)
         {
@@ -184,10 +184,11 @@ public static class ProtoStreamExtensions
 
         using var writer = Facepunch.Pool.Get<BufferStream>().Initialize();
 
+        var (maxLength, lengthPrefixSize) = GetLengthPrefixSize(maxSizeHint);
         BufferStream.RangeHandle lengthRange = default;
         if (lengthDelimited)
         {
-            lengthRange = writer.GetRange(3); // 21 bits max size (2 MiB)
+            lengthRange = writer.GetRange(lengthPrefixSize);
         }
 
         var start = writer.Position;
@@ -196,6 +197,11 @@ public static class ProtoStreamExtensions
         if (lengthDelimited)
         {
             var length = writer.Position - start;
+            if (length > maxLength)
+            {
+                throw new InvalidOperationException($"Written proto exceeds maximum size hint (maxSizeHint={maxSizeHint}, actualLength={length})");
+            }
+            
             ProtocolParser.WriteUInt32((uint)length, lengthRange.GetSpan(), 0);
         }
 
@@ -205,8 +211,23 @@ public static class ProtoStreamExtensions
             stream.Write(buffer.Array, buffer.Offset, buffer.Count);
         }
     }
+    
+    private static (int MaxLength, int LengthPrefixSize) GetLengthPrefixSize(int maxSizeHint)
+    {
+        if (maxSizeHint < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maxSizeHint));
+        }
 
-    public static void ReadFromStream(this SilentOrbit.ProtocolBuffers.IProto proto, Stream stream, bool isDelta = false)
+        if (maxSizeHint <= 0x7F) return (0x7F, 1);
+        if (maxSizeHint <= 0x3FFF) return (0x3FFF, 2);
+        if (maxSizeHint <= 0x1FFFFF) return (0x1FFFFF, 3);
+        if (maxSizeHint <= 0xFFFFFFF) return (0xFFFFFF, 4);
+        
+        throw new ArgumentOutOfRangeException(nameof(maxSizeHint));
+    }
+
+    public static void ReadFromStream(this SilentOrbit.ProtocolBuffers.IProto proto, Stream stream, bool isDelta = false, int maxSize = 1 * 1024 * 1024)
     {
         if (proto == null)
         {
@@ -218,8 +239,6 @@ public static class ProtoStreamExtensions
             throw new ArgumentNullException(nameof(stream));
         }
 
-        const int maxSize = 1 * 1024 * 1024; // 1 MiB
-        
         var startPosition = stream.Position;
 		
         var buffer = BufferStream.Shared.ArrayPool.Rent(maxSize);
