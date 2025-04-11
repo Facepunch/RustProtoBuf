@@ -201,8 +201,21 @@ public static class ProtoStreamExtensions
             {
                 throw new InvalidOperationException($"Written proto exceeds maximum size hint (maxSizeHint={maxSizeHint}, actualLength={length})");
             }
-            
-            ProtocolParser.WriteUInt32((uint)length, lengthRange.GetSpan(), 0);
+			
+            var lengthSpan = lengthRange.GetSpan();
+            var writtenBytes = ProtocolParser.WriteUInt32((uint)length, lengthSpan, 0);
+
+            if (writtenBytes != lengthPrefixSize)
+            {
+                lengthSpan[writtenBytes - 1] |= 0x80; // mark the last written byte as having a continuation
+                
+                while (writtenBytes < lengthPrefixSize - 1)
+                {
+                    lengthSpan[writtenBytes++] = 0x80; // continuation with no bits set
+                }
+                
+                lengthSpan[writtenBytes] = 0; // and the last byte terminates the varint
+            }
         }
 
         if (writer.Length > 0)
