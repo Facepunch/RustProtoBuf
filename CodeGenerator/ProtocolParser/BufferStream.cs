@@ -42,7 +42,16 @@
 	public int Position
 	{
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		get => _position; 
+		get => _position;
+        set
+        {
+            if (value < 0 || value > _length)
+            {
+                throw new ArgumentOutOfRangeException(nameof(value));
+            }
+
+            _position = value;
+        }
 	}
 
 	public BufferStream Initialize()
