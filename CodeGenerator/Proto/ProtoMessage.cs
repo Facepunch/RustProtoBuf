@@ -94,6 +94,7 @@ namespace SilentOrbit.ProtocolBuffers
             }
         }
 
+        private bool _isCalculatingMaxWireSize;
         private int? _maxWireSizeCache;
         public override int MaximumWireSize
         {
@@ -101,23 +102,32 @@ namespace SilentOrbit.ProtocolBuffers
             {
                 if (_maxWireSizeCache != null)
                     return _maxWireSizeCache.Value;
-                
+
+                if (_isCalculatingMaxWireSize)
+                    return -1; // sucky fix for infinite recursion
+
+                _isCalculatingMaxWireSize = true;
+
                 var totalSize = 0;
                 foreach (var f in Fields.Values)
                 {
-                    var typeSize = f.Rule != FieldRule.Repeated
-                        ? f.ProtoType.MaximumWireSize
-                        : 512_000; // assume a safe upper bound for repeated fields 
-                    if (typeSize < -1)
+                    var typeSize = f.ProtoType.MaximumWireSize;
+                    if (typeSize <= 0)
                     {
                         totalSize = -1;
                         break;
+                    }
+
+                    if (f.Rule == FieldRule.Repeated)
+                    {
+                        typeSize *= 10_000; // assume a generous maximum length for repeated fields
                     }
                     
                     totalSize += 2 + typeSize; // allow up to two bytes for each field's tag
                 }
 
                 _maxWireSizeCache = totalSize;
+                _isCalculatingMaxWireSize = false;
                 return totalSize;
             }
         }

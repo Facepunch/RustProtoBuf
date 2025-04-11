@@ -489,7 +489,7 @@ namespace SilentOrbit.ProtocolBuffers
                 CodeWriter cw = new CodeWriter();
 
                 var maxSize = f.ProtoType.MaximumWireSize;
-                if (maxSize < 0) maxSize = int.MaxValue;
+                if (maxSize < 0) maxSize = int.MaxValue - 1;
                 var lengthByteCount = (int)Math.Ceiling(Math.Ceiling(Math.Log(maxSize + 1, 2) / 7));
                 cw.WriteLine($"// maxSize = {maxSize}, bytes={lengthByteCount}");
 
@@ -502,8 +502,16 @@ namespace SilentOrbit.ProtocolBuffers
                 else 
                     cw.WriteLine($"{pm.FullSerializerType}.Serialize({stream}, {instance});");
 
+                cw.WriteLine($"var lengthValue{f.ID} = {stream}.Position - startPos{f.ID};");
+                if (maxSize != int.MaxValue - 1)
+                {
+                    cw.IfBracket($"lengthValue{f.ID} > {(int)(Math.Ceiling(Math.Pow(2, lengthByteCount * 7))) - 1}");
+                    cw.WriteLine($"throw new InvalidOperationException(\"Not enough space was reserved for the length prefix of field {f.CsName} ({pm.FullCsType})\");");
+                    cw.EndBracket();
+                }
+
                 cw.WriteLine($"var lengthSpan{f.ID} = lengthRange{f.ID}.GetSpan();");
-                cw.WriteLine($"var writtenBytes{f.ID} = global::SilentOrbit.ProtocolBuffers.ProtocolParser.WriteUInt32((uint)({stream}.Position - startPos{f.ID}), lengthSpan{f.ID}, 0);");
+                cw.WriteLine($"var writtenBytes{f.ID} = global::SilentOrbit.ProtocolBuffers.ProtocolParser.WriteUInt32((uint)lengthValue{f.ID}, lengthSpan{f.ID}, 0);");
 
                 if (lengthByteCount > 1)
                 {

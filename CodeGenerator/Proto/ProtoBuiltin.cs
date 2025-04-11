@@ -94,7 +94,7 @@ namespace SilentOrbit.ProtocolBuffers
                         return 10; // ceilToInt(64 / 7)
                     case String:
                     case Bytes:
-                        return 512 * 1024; // technically unbounded but in practice will always have some limit
+                        return -1; // we don't know how big it could be
                     default:
                         return base.MaximumWireSize;
                 }
