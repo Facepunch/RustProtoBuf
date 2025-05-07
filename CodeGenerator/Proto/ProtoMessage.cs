@@ -77,20 +77,7 @@ namespace SilentOrbit.ProtocolBuffers
         }
 
         /// <summary>
-        /// Return the buffer size of the largest field specified in the .proto file.
-        /// </summary>
-        public int MaxFieldBufferSize()
-        {
-            if (BufferSize > 0)
-                return BufferSize;
-            int size = 0;
-            foreach (var f in Fields.Values)
-                size = Math.Max(size, f.BufferSizeScan());
-            return size;
-        }
-
-        /// <summary>
-        /// If all fields are constant then this messag eis constant too
+        /// If all fields are constant then this message is constant too
         /// </summary>
         public override int WireSize
         {
@@ -101,8 +88,46 @@ namespace SilentOrbit.ProtocolBuffers
                 {
                     if (f.ProtoType.WireSize < 0)
                         return -1;
-                    totalSize += f.ProtoType.WireSize;
+                    totalSize += 2 + f.ProtoType.WireSize;
                 }
+                return totalSize;
+            }
+        }
+
+        private bool _isCalculatingMaxWireSize;
+        private int? _maxWireSizeCache;
+        public override int MaximumWireSize
+        {
+            get
+            {
+                if (_maxWireSizeCache != null)
+                    return _maxWireSizeCache.Value;
+
+                if (_isCalculatingMaxWireSize)
+                    return -1; // sucky fix for infinite recursion
+
+                _isCalculatingMaxWireSize = true;
+
+                var totalSize = 0;
+                foreach (var f in Fields.Values)
+                {
+                    var typeSize = f.ProtoType.MaximumWireSize;
+                    if (typeSize <= 0)
+                    {
+                        totalSize = -1;
+                        break;
+                    }
+
+                    if (f.Rule == FieldRule.Repeated)
+                    {
+                        typeSize *= 10_000; // assume a generous maximum length for repeated fields
+                    }
+                    
+                    totalSize += 2 + typeSize; // allow up to two bytes for each field's tag
+                }
+
+                _maxWireSizeCache = totalSize;
+                _isCalculatingMaxWireSize = false;
                 return totalSize;
             }
         }

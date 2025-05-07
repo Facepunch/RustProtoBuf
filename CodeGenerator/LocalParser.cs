@@ -15,9 +15,6 @@ namespace SilentOrbit.ProtocolBuffers
                 case "triggers":
                     message.OptionTriggers = true;
                     break;
-                case "preserveunknown":
-                    message.OptionPreserveUnknown = true;
-                    break;
                 case "external":
                     message.OptionExternal = true;				
                     break;
@@ -52,9 +49,6 @@ namespace SilentOrbit.ProtocolBuffers
 				case "baseclass":
 					message.OptionBase = value;
 					break;
-                case "buffer":
-                    message.BufferSize = int.Parse(value);
-                    break;
                 default:
                     throw new NotImplementedException("Unknown option: " + key);
             }

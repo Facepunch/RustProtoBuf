@@ -66,11 +66,11 @@
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
+    <EmbeddedResource Include="ProtocolParser\BufferStream.cs">
+      <LogicalName>BufferStream</LogicalName>
+    </EmbeddedResource>
     <EmbeddedResource Include="ProtocolParser\ProtocolParser.cs">
       <LogicalName>ProtocolParser</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="ProtocolParser\ProtocolParserFixed.cs">
-      <LogicalName>ProtocolParserFixed</LogicalName>
     </EmbeddedResource>
     <EmbeddedResource Include="ProtocolParser\ProtocolParserKey.cs">
       <LogicalName>ProtocolParserKey</LogicalName>

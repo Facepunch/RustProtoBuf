@@ -92,18 +92,6 @@ namespace SilentOrbit.ProtocolBuffers
         #endregion
         #endregion
 
-        /// <summary>
-        /// Return the buffer size specified in the .proto file.
-        /// If specified for this field return this one, otherwise return the size specified for the message type.
-        /// </summary>
-        public int BufferSizeScan()
-        {
-            if (BufferSize > 0)
-                return BufferSize;
-            else
-                return ProtoType.BufferSize;
-        }
-
         public Wire WireType
         {
             get

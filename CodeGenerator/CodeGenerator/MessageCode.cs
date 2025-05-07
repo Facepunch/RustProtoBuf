@@ -25,14 +25,7 @@ namespace SilentOrbit.ProtocolBuffers
 
             //if(options.GenerateToString...
             // ...
-
-            if (m.OptionPreserveUnknown)
-            {
-                cw.Summary("Values for unknown fields.");
-                cw.WriteLine("public List<global::SilentOrbit.ProtocolBuffers.KeyValue> PreservedFields;");
-                cw.WriteLine();
-            }
-
+            
             if (m.OptionTriggers)
             {
                 cw.Comment("protected virtual void BeforeSerialize() {}");

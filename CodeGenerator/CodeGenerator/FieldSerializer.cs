@@ -29,7 +29,7 @@ namespace SilentOrbit.ProtocolBuffers
                     cw.WriteLine("long end" + f.ID + " = global::SilentOrbit.ProtocolBuffers.ProtocolParser.ReadUInt32(stream);");
                     cw.WriteLine("end" + f.ID + " += stream.Position;");
                     cw.WhileBracket("stream.Position < end" + f.ID);
-                    cw.WriteLine("instance." + f.CsName + ".Add(" + FieldReaderType(f, "stream", "br", null) + ");");
+                    cw.WriteLine("instance." + f.CsName + ".Add(" + FieldReaderType(f, "stream", null) + ");");
                     cw.EndBracket();
 
                     cw.WriteLine("if (stream.Position != end" + f.ID + ")");
@@ -44,13 +44,13 @@ namespace SilentOrbit.ProtocolBuffers
                     {
                         cw.WriteLine( "{" );
                         cw.WriteIndent( $"var a = default( {f.ProtoType.FullCsType} );" );
-                        cw.WriteIndent( $"{FieldReaderType(f, "stream", "br", "ref a")};" );
+                        cw.WriteIndent( $"{FieldReaderType(f, "stream", "ref a")};" );
                         cw.WriteIndent( $"instance.{f.CsName}.Add( a );" );
                         cw.WriteLine( "}" );
                     }
                     else
                     {
-                        cw.WriteLine("instance." + f.CsName + ".Add(" + FieldReaderType(f, "stream", "br", null) + ");");
+                        cw.WriteLine("instance." + f.CsName + ".Add(" + FieldReaderType(f, "stream", null) + ");");
                     }
                 }
             }
@@ -62,7 +62,7 @@ namespace SilentOrbit.ProtocolBuffers
                     //We could possibly support bytes primitive too but it would require the incoming length to match the wire length
                     if (f.ProtoType is ProtoMessage)
                     {
-                        cw.WriteLine(FieldReaderType(f, "stream", "br", "instance." + f.CsName) + ";");
+                        cw.WriteLine(FieldReaderType(f, "stream", "instance." + f.CsName) + ";");
                         return true;
                     }
                     cw.WriteLine("throw new InvalidOperationException(\"Can't deserialize into a readonly primitive field\");");
@@ -75,13 +75,13 @@ namespace SilentOrbit.ProtocolBuffers
                     {
 						if ( f.OptionUseReferences )
 						{
-							cw.WriteLine( FieldReaderType( f, "stream", "br", "ref instance." + f.CsName ) + ";" );
+							cw.WriteLine( FieldReaderType( f, "stream", "ref instance." + f.CsName ) + ";" );
 						}
 						else
 						{
 							cw.WriteLine( "{" );
 							cw.WriteIndent( "var a = instance." + f.CsName + ";" );
-							cw.WriteIndent( "instance." + f.CsName + " = " + FieldReaderType( f, "stream", "br", "ref a" ) + ";" );
+							cw.WriteIndent( "instance." + f.CsName + " = " + FieldReaderType( f, "stream", "ref a" ) + ";" );
 							cw.WriteLine( "}" );
 						}
                         
@@ -92,13 +92,13 @@ namespace SilentOrbit.ProtocolBuffers
                     if (f.ProtoType.OptionType == "interface")
                         cw.WriteIndent("throw new InvalidOperationException(\"Can't deserialize into a interfaces null pointer\");");
                     else
-                        cw.WriteIndent("instance." + f.CsName + " = " + FieldReaderType(f, "stream", "br", null) + ";");
+                        cw.WriteIndent("instance." + f.CsName + " = " + FieldReaderType(f, "stream", null) + ";");
                     cw.WriteLine("else");
-                    cw.WriteIndent(FieldReaderType(f, "stream", "br", "instance." + f.CsName) + ";");
+                    cw.WriteIndent(FieldReaderType(f, "stream", "instance." + f.CsName) + ";");
                     return true;
                 }
 
-                cw.WriteLine("instance." + f.CsName + " = " + FieldReaderType(f, "stream", "br", "instance." + f.CsName) + ";");
+                cw.WriteLine("instance." + f.CsName + " = " + FieldReaderType(f, "stream", "instance." + f.CsName) + ";");
             }
             return true;
         }
@@ -106,7 +106,7 @@ namespace SilentOrbit.ProtocolBuffers
         /// <summary>
         /// Read a primitive from the stream
         /// </summary>
-        static string FieldReaderType(Field f, string stream, string binaryReader, string instance)
+        static string FieldReaderType(Field f, string stream, string instance)
         {
             if (f.OptionCodeType != null)
             {
@@ -119,7 +119,7 @@ namespace SilentOrbit.ProtocolBuffers
                             case ProtoBuiltin.Int64:
                             case ProtoBuiltin.Fixed64:
                             case ProtoBuiltin.SFixed64:
-                                return "new DateTime((long)" + FieldReaderPrimitive(f, stream, binaryReader, instance) + ")";
+                                return "new DateTime((long)" + FieldReaderPrimitive(f, stream, instance) + ")";
                         }
                         throw new ProtoFormatException("Local feature, DateTime, must be stored in a 64 bit field", f.Source);
 
@@ -130,20 +130,20 @@ namespace SilentOrbit.ProtocolBuffers
                             case ProtoBuiltin.Int64:
                             case ProtoBuiltin.Fixed64:
                             case ProtoBuiltin.SFixed64:
-                                return "new TimeSpan((long)" + FieldReaderPrimitive(f, stream, binaryReader, instance) + ")";
+                                return "new TimeSpan((long)" + FieldReaderPrimitive(f, stream, instance) + ")";
                         }
                         throw new ProtoFormatException("Local feature, TimeSpan, must be stored in a 64 bit field", f.Source);
 
                     default:
                         //Assume enum
-                        return "(" + f.OptionCodeType + ")" + FieldReaderPrimitive(f, stream, binaryReader, instance);
+                        return "(" + f.OptionCodeType + ")" + FieldReaderPrimitive(f, stream, instance);
                 }
             }
 
-            return FieldReaderPrimitive(f, stream, binaryReader, instance);
+            return FieldReaderPrimitive(f, stream, instance);
         }
 
-        static string FieldReaderPrimitive(Field f, string stream, string binaryReader, string instance)
+        static string FieldReaderPrimitive(Field f, string stream, string instance)
         {
             if (f.ProtoType is ProtoMessage)
             {
@@ -180,14 +180,13 @@ namespace SilentOrbit.ProtocolBuffers
                     case ProtoBuiltin.SInt64:
                         return "global::SilentOrbit.ProtocolBuffers.ProtocolParser.ReadZInt64(" + stream + ")";
                     case ProtoBuiltin.Fixed32:
-                        //return "global::SilentOrbit.ProtocolBuffers.ProtocolParser.ReadSingle(" + stream + ")";
-                        return binaryReader + ".ReadUInt32()";
+                        return "global::SilentOrbit.ProtocolBuffers.ProtocolParser.ReadSingle(" + stream + ")";
                     case ProtoBuiltin.Fixed64:
-                        return binaryReader + ".ReadUInt64()";
+                        return "global::SilentOrbit.ProtocolBuffers.ProtocolParser.ReadDouble(" + stream + ")";
                     case ProtoBuiltin.SFixed32:
-                        return binaryReader + ".ReadInt32()";
+                        return "global::SilentOrbit.ProtocolBuffers.ProtocolParser.ReadFixedInt32(" + stream + ")";
                     case ProtoBuiltin.SFixed64:
-                        return binaryReader + ".ReadInt64()";
+                        return "global::SilentOrbit.ProtocolBuffers.ProtocolParser.ReadFixedInt64(" + stream + ")";
                     case ProtoBuiltin.Bool:
                         return "global::SilentOrbit.ProtocolBuffers.ProtocolParser.ReadBool(" + stream + ")";
                     case ProtoBuiltin.String:
@@ -201,7 +200,7 @@ namespace SilentOrbit.ProtocolBuffers
                     case ProtoBuiltin.ItemId:
                         return $"new {f.ProtoType.FullCsType}(global::SilentOrbit.ProtocolBuffers.ProtocolParser.ReadUInt64({stream}))";
                     default:
-                        throw new ProtoFormatException("unknown build in: " + f.ProtoType.ProtoName, f.Source);
+                        throw new ProtoFormatException("unknown built in: " + f.ProtoType.ProtoName, f.Source);
                 }
 
             }
@@ -323,7 +322,7 @@ namespace SilentOrbit.ProtocolBuffers
                             //cw.WriteLine("BinaryWriter bw" + f.ID + " = new BinaryWriter(ms" + f.ID + ");");
 
                         cw.ForeachBracket( "i" + f.ID, "instance." + f.CsName );
-                        cw.WriteLine(FieldWriterType(f, "msField", "bw" + f.ID, "i" + f.ID, hasPrevious ) );
+                        cw.WriteLine(FieldWriterType(f, "msField", "i" + f.ID, hasPrevious ) );
                         cw.EndBracket();
 
                         BytesWriter(f, "stream", cw);
@@ -337,7 +336,7 @@ namespace SilentOrbit.ProtocolBuffers
                         cw.WriteLine("global::SilentOrbit.ProtocolBuffers.ProtocolParser.WriteUInt32(stream, " + f.ProtoType.WireSize + "u * (uint)instance." + f.CsName + ".Count);");
 
                         cw.ForeachBracket( "i" + f.ID, "instance." + f.CsName );
-                        cw.WriteLine(FieldWriterType(f, "stream", "bw", "i" + f.ID, hasPrevious ) );
+                        cw.WriteLine(FieldWriterType(f, "stream", "i" + f.ID, hasPrevious ) );
                         cw.EndBracket();
                     }
                     cw.EndBracket();
@@ -348,7 +347,7 @@ namespace SilentOrbit.ProtocolBuffers
                     cw.IfBracket("instance." + f.CsName + " != null");
                     cw.ForeachBracket( "i" + f.ID, "instance." + f.CsName );
                     KeyWriter("stream", f.ID, f.ProtoType.WireType, cw);
-                    cw.WriteLine(FieldWriterType(f, "stream", "bw", "i" + f.ID, hasPrevious ) );
+                    cw.WriteLine(FieldWriterType(f, "stream", "i" + f.ID, hasPrevious ) );
                     cw.EndBracket();
                     cw.EndBracket();
                 }
@@ -380,7 +379,7 @@ namespace SilentOrbit.ProtocolBuffers
                         cw.IfBracket( "instance." + f.CsName + " != previous." + f.CsName );
 
                     KeyWriter("stream", f.ID, f.ProtoType.WireType, cw);
-                    cw.WriteLine(FieldWriterType(f, "stream", "bw", "instance." + f.CsName, hasPrevious ) );
+                    cw.WriteLine(FieldWriterType(f, "stream", "instance." + f.CsName, hasPrevious ) );
                     if (f.ProtoType.Nullable) //Struct always exist, not optional
                         cw.EndBracket();
 
@@ -400,7 +399,7 @@ namespace SilentOrbit.ProtocolBuffers
                         WriteOptionalFieldCheck( cw, f );
                     }
                     KeyWriter("stream", f.ID, f.ProtoType.WireType, cw);
-                    cw.WriteLine(FieldWriterType(f, "stream", "bw", "instance." + f.CsName, hasPrevious ) );
+                    cw.WriteLine(FieldWriterType(f, "stream", "instance." + f.CsName, hasPrevious ) );
                     if (f.OptionDefault != null)
                         cw.EndBracket();
                     if (canOptional)
@@ -417,7 +416,7 @@ namespace SilentOrbit.ProtocolBuffers
                 }
 
                 KeyWriter("stream", f.ID, f.ProtoType.WireType, cw);
-                cw.WriteLine(FieldWriterType(f, "stream", "bw", "instance." + f.CsName, hasPrevious ) );
+                cw.WriteLine(FieldWriterType(f, "stream", "instance." + f.CsName, hasPrevious ) );
 
                 if ( hasPrevious && canDelta ) 
                     cw.EndBracket();
@@ -451,7 +450,7 @@ namespace SilentOrbit.ProtocolBuffers
                     WriteOptionalFieldCheck( cw, f );
                 }
                 KeyWriter("stream", f.ID, f.ProtoType.WireType, cw);
-                cw.WriteLine(FieldWriterType(f, "stream", "bw", "instance." + f.CsName, hasPrevious ) );
+                cw.WriteLine(FieldWriterType(f, "stream", "instance." + f.CsName, hasPrevious ) );
 
                 if ( hasPrevious && canDelta )
                     cw.EndBracket();
@@ -464,7 +463,7 @@ namespace SilentOrbit.ProtocolBuffers
             throw new NotImplementedException("Unknown rule: " + f.Rule);
         }
 
-        static string FieldWriterType(Field f, string stream, string binaryWriter, string instance, bool hasPrevious )
+        static string FieldWriterType(Field f, string stream, string instance, bool hasPrevious )
         {
             if (f.OptionCodeType != null)
             {
@@ -472,32 +471,67 @@ namespace SilentOrbit.ProtocolBuffers
                 {
                     case "DateTime":
                     case "TimeSpan":
-                        return FieldWriterPrimitive(f, stream, binaryWriter, instance + ".Ticks", hasPrevious );
+                        return FieldWriterPrimitive(f, stream, instance + ".Ticks", hasPrevious );
                     default: //enum
                         break;
                 }
             }
-            return FieldWriterPrimitive(f, stream, binaryWriter, instance, hasPrevious );
+            return FieldWriterPrimitive(f, stream, instance, hasPrevious );
         }
 
-        static string FieldWriterPrimitive(Field f, string stream, string binaryWriter, string instance, bool hasPrevious )
+        static string FieldWriterPrimitive(Field f, string stream, string instance, bool hasPrevious )
         {
-
             if (f.ProtoType is ProtoEnum)
                 return "global::SilentOrbit.ProtocolBuffers.ProtocolParser.WriteUInt64(" + stream + ",(ulong)" + instance + ");";
 
-            if (f.ProtoType is ProtoMessage)
+            if (f.ProtoType is ProtoMessage pm)
             {
-                ProtoMessage pm = f.ProtoType as ProtoMessage;
                 CodeWriter cw = new CodeWriter();
-                cw.WriteLine("msField.SetLength(0);");
 
+                var maxSize = f.ProtoType.MaximumWireSize;
+                if (maxSize < 0) maxSize = int.MaxValue - 1;
+                var lengthByteCount = (int)Math.Ceiling(Math.Ceiling(Math.Log(maxSize + 1, 2) / 7));
+                cw.WriteLine($"// maxSize = {maxSize}, bytes={lengthByteCount}");
+
+                // reserve a spot for the length prefix, padding out the end in case the length is shorter 
+                cw.WriteLine($"var lengthRange{f.ID} = {stream}.GetRange({lengthByteCount});");
+                cw.WriteLine($"var startPos{f.ID} = {stream}.Position;");
+                
                 if ( hasPrevious )
-                    cw.WriteLine( pm.FullSerializerType + ".SerializeDelta(msField, " + instance + ", " + instance.Replace( "instance.", "previous." ) + " );" );
+                    cw.WriteLine($"{pm.FullSerializerType}.SerializeDelta({stream}, {instance}, {instance.Replace("instance.", "previous.")} );");
                 else 
-                    cw.WriteLine(pm.FullSerializerType + ".Serialize(msField, " + instance + ");");
+                    cw.WriteLine($"{pm.FullSerializerType}.Serialize({stream}, {instance});");
 
-                BytesWriter(f, stream, cw);
+                cw.WriteLine($"var lengthValue{f.ID} = {stream}.Position - startPos{f.ID};");
+                if (maxSize != int.MaxValue - 1)
+                {
+                    cw.IfBracket($"lengthValue{f.ID} > {(int)(Math.Ceiling(Math.Pow(2, lengthByteCount * 7))) - 1}");
+                    cw.WriteLine($"throw new InvalidOperationException(\"Not enough space was reserved for the length prefix of field {f.CsName} ({pm.FullCsType})\");");
+                    cw.EndBracket();
+                }
+
+                cw.WriteLine($"var lengthSpan{f.ID} = lengthRange{f.ID}.GetSpan();");
+                cw.WriteLine($"var writtenBytes{f.ID} = global::SilentOrbit.ProtocolBuffers.ProtocolParser.WriteUInt32((uint)lengthValue{f.ID}, lengthSpan{f.ID}, 0);");
+
+                if (lengthByteCount > 1)
+                {
+                    cw.IfBracket($"writtenBytes{f.ID} < {lengthByteCount}");
+                    
+                    if (lengthByteCount == 2)
+                    {
+                        cw.WriteLine($"lengthSpan{f.ID}[0] |= 0x80;");
+                        cw.WriteLine($"lengthSpan{f.ID}[1] = 0x00;");
+                    }
+                    else
+                    {
+                        cw.WriteLine($"lengthSpan{f.ID}[writtenBytes{f.ID} - 1] |= 0x80;");
+                        cw.WriteLine($"while (writtenBytes{f.ID} < {lengthByteCount - 1}) lengthSpan{f.ID}[writtenBytes{f.ID}++] = 0x80;");
+                        cw.WriteLine($"lengthSpan{f.ID}[{lengthByteCount - 1}] = 0x00;");
+                    }
+                    
+                    cw.EndBracket();
+                }
+                
                 return cw.Code;
             }
 
