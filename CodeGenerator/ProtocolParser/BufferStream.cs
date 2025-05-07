@@ -210,6 +210,11 @@
 
 	public ArraySegment<byte> GetBuffer()
 	{
+        if (_length == 0)
+        {
+            return new ArraySegment<byte>(Array.Empty<byte>(), 0, 0);
+        }
+
 		return new ArraySegment<byte>(_buffer, 0, _length);
 	}
 	
