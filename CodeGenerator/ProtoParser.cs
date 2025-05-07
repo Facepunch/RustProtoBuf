@@ -221,6 +221,8 @@ namespace SilentOrbit.ProtocolBuffers
             f.ID = int.Parse(tr.ReadNext());
             if (19000 <= f.ID && f.ID <= 19999)
                 throw new ProtoFormatException("Can't use reserved field ID 19000-19999", tr);
+            if (f.ID == 0)
+                throw new ProtoFormatException("Can't use reserved field ID 0", tr);
             if (f.ID > (1 << 29) - 1)
                 throw new ProtoFormatException("Maximum field id is 2^29 - 1", tr);
 
