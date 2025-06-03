@@ -491,6 +491,7 @@ namespace SilentOrbit.ProtocolBuffers
                 var maxSize = f.ProtoType.MaximumWireSize;
                 if (maxSize < 0) maxSize = int.MaxValue - 1;
                 var lengthByteCount = (int)Math.Ceiling(Math.Ceiling(Math.Log(maxSize + 1, 2) / 7));
+                if (lengthByteCount == 0) lengthByteCount = 1;
                 cw.WriteLine($"// maxSize = {maxSize}, bytes={lengthByteCount}");
 
                 // reserve a spot for the length prefix, padding out the end in case the length is shorter 
