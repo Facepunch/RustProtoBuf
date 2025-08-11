@@ -232,7 +232,11 @@ namespace SilentOrbit.ProtocolBuffers
                 }
 
                 cw.WriteLine("int keyByte = stream.ReadByte();");
-                cw.WriteLine("if (keyByte == -1)");
+
+                if (method == "Deserialize")
+                    cw.WriteLine("if (keyByte == -1 || keyByte == 0)");
+                else
+                    cw.WriteLine("if (keyByte == -1)");
                 if (method == "Deserialize")
                     cw.WriteIndent("break;");
                 else
