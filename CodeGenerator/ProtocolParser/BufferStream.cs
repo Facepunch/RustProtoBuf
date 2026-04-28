@@ -204,6 +204,11 @@
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public void Skip(int count)
 	{
+		if (count < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(count));
+        }
+
 		 // todo: bounds checks?
 		_position += count;
 	}
