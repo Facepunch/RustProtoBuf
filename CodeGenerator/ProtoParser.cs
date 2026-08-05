@@ -299,6 +299,12 @@ namespace SilentOrbit.ProtocolBuffers
                 case "uid_clear":
                     f.OptionUidClear = Boolean.Parse(val ?? "true");
                     break;
+                case "max_length":
+                    if(int.TryParse(val, out int result))
+                    {
+                        f.OptionMaxCount = result;
+                    }
+                    break;
                 default:
                     Console.WriteLine("Warning: Unknown field option: " + key);
                     break;

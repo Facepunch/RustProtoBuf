@@ -49,6 +49,13 @@ namespace SilentOrbit.ProtocolBuffers
         public bool OptionPooled = false;
         public bool OptionUidClear = false;
 
+        /// <summary>
+        /// Maximum number of elements allowed in a repeated field list.
+        /// Must be set for all repeated fields. -1 means unset (will fail code generation).
+        /// Specified using the max_length attribute: e.g. repeated int32 fieldName = [max_length = 16]1;
+        /// </summary>
+        public int OptionMaxCount = -1;
+
         public bool IsUsingBinaryWriter
         {
             get

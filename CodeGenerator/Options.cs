@@ -28,7 +28,7 @@ namespace SilentOrbit.ProtocolBuffers
         /// </summary>
         [Option('t', "use-tabs", HelpText = "If set generated code will use tabs rather than 4 spaces.")]
         public bool UseTabs { get; set; }
-
+        
         [Value(0, Required = true)]
         public IEnumerable<string> InputProto { get; set; }
 
@@ -43,6 +43,12 @@ namespace SilentOrbit.ProtocolBuffers
         /// </summary>
         [Option("experimental-message-stack", HelpText = "Assign the name of the stack implementatino to use for each message type, included options are ThreadSafeStack, ThreadUnsafeStack, ConcurrentBagStack or the full namespace to your own implementation.")]
         public string ExperimentalStack { get; set; }
+
+        /// <summary>
+        /// If true, compilation will fail if a repeated field does not have a limit applied
+        /// </summary>
+        [Option("strict-list-length", HelpText = "If true, compilation will fail if a repeated field does not have a limit applied.")]
+        public bool StrictListSizeLimits { get; set; }
 
         public static Options Parse(string[] args)
         {

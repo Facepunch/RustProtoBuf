@@ -57,6 +57,14 @@ namespace SilentOrbit.ProtocolBuffers
 
                 DetectNameClash(m, f);
 
+                if (options.StrictListSizeLimits)
+                {
+                    if (f.Rule == FieldRule.Repeated && f.OptionMaxCount <= 0)
+                        throw new ProtoFormatException(
+                            $"repeated field '{m.FullProtoName}.{f.ProtoName}' must specify a maximum element count using type[N] syntax, e.g. repeated {f.ProtoTypeName}[64] {f.ProtoName} = {f.ID};",
+                            f.Source);
+                }
+
                 if (f.OptionDefault != null)
                 {
                     if (f.ProtoType is ProtoBuiltin && ((ProtoBuiltin)f.ProtoType).ProtoName == "bytes")

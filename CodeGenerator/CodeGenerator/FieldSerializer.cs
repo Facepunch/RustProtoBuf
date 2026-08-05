@@ -30,6 +30,12 @@ namespace SilentOrbit.ProtocolBuffers
                     cw.WriteLine("end" + f.ID + " += stream.Position;");
                     cw.WhileBracket("stream.Position < end" + f.ID);
                     cw.WriteLine("instance." + f.CsName + ".Add(" + FieldReaderType(f, "stream", null) + ");");
+                    if (f.OptionMaxCount > 0)
+                    {
+                        cw.WriteLine($"if (instance.{f.CsName}.Count > {f.OptionMaxCount})");
+                        cw.WriteIndent($"throw new global::SilentOrbit.ProtocolBuffers.ProtocolBufferException(\"Repeated field {f.CsName} exceeded max count of {f.OptionMaxCount}\");");
+                    }
+
                     cw.EndBracket();
 
                     cw.WriteLine("if (stream.Position != end" + f.ID + ")");
@@ -51,6 +57,12 @@ namespace SilentOrbit.ProtocolBuffers
                     else
                     {
                         cw.WriteLine("instance." + f.CsName + ".Add(" + FieldReaderType(f, "stream", null) + ");");
+                    }
+
+                    if (f.OptionMaxCount > 0)
+                    {
+                        cw.WriteLine($"if (instance.{f.CsName}.Count > {f.OptionMaxCount})");
+                        cw.WriteIndent($"throw new global::SilentOrbit.ProtocolBuffers.ProtocolBufferException(\"Repeated field {f.CsName} exceeded max count of {f.OptionMaxCount}\");");
                     }
                 }
             }
@@ -311,6 +323,11 @@ namespace SilentOrbit.ProtocolBuffers
                 {
                     //Repeated packed
                     cw.IfBracket("instance." + f.CsName + " != null");
+                    if (f.OptionMaxCount > 0)
+                    {
+                        cw.WriteLine($"if (instance.{f.CsName}.Count > {f.OptionMaxCount})");
+                        cw.WriteIndent($"throw new InvalidOperationException(\"Repeated field {f.CsName} exceeded max count of {f.OptionMaxCount}\");");
+                    }
 
                     KeyWriter("stream", f.ID, Wire.LengthDelimited, cw);
                     if (f.ProtoType.WireSize < 0)
@@ -345,6 +362,12 @@ namespace SilentOrbit.ProtocolBuffers
                 {
                     //Repeated not packet
                     cw.IfBracket("instance." + f.CsName + " != null");
+                    if (f.OptionMaxCount > 0)
+                    {
+                        cw.WriteLine($"if (instance.{f.CsName}.Count > {f.OptionMaxCount})");
+                        cw.WriteIndent($"throw new InvalidOperationException(\"Repeated field {f.CsName} exceeded max count of {f.OptionMaxCount}\");");
+                    }
+
                     cw.ForeachBracket( "i" + f.ID, "instance." + f.CsName );
                     KeyWriter("stream", f.ID, f.ProtoType.WireType, cw);
                     cw.WriteLine(FieldWriterType(f, "stream", "i" + f.ID, hasPrevious ) );
@@ -506,7 +529,15 @@ namespace SilentOrbit.ProtocolBuffers
                 cw.WriteLine($"var lengthValue{f.ID} = {stream}.Position - startPos{f.ID};");
                 if (maxSize != int.MaxValue - 1)
                 {
-                    cw.IfBracket($"lengthValue{f.ID} > {(int)(Math.Ceiling(Math.Pow(2, lengthByteCount * 7))) - 1}");
+                    long maxSizeFromLength = (long)Math.Ceiling(Math.Pow(2, lengthByteCount * 7)) - 1;
+                    if(maxSizeFromLength >= int.MaxValue)
+                    {
+                        cw.IfBracket($"(long)lengthValue{f.ID} > {maxSizeFromLength}");
+                    }
+                    else
+                    {
+                        cw.IfBracket($"lengthValue{f.ID} > {maxSizeFromLength}");
+                    }
                     cw.WriteLine($"throw new InvalidOperationException(\"Not enough space was reserved for the length prefix of field {f.CsName} ({pm.FullCsType})\");");
                     cw.EndBracket();
                 }

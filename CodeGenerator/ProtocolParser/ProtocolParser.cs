@@ -122,6 +122,13 @@ namespace SilentOrbit.ProtocolBuffers
             // Only limit length when reading from network
             int length = (int)ReadUInt32( stream );
 
+            // trying to read invalid amount of data from stream, bad client?
+            if (length < 0 || length > stream.Length - stream.Position)
+            {
+                Profiler.EndSample();
+                throw new InvalidOperationException("ReadPooledBytes tried to read outside of stream");
+            }
+
             //Bytes
             byte[] buffer = BufferStream.Shared.ArrayPool.Rent( length );
             ReadBytesInto( stream, buffer, length );

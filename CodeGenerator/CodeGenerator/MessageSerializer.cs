@@ -493,13 +493,11 @@ namespace SilentOrbit.ProtocolBuffers
         /// </summary>
         static void GenerateWriter( ProtoMessage m, CodeWriter cw, Options options )
         {
-            string stack = "global::SilentOrbit.ProtocolBuffers.ProtocolParser.Stack";
             if ( options.ExperimentalStack != null )
             {
-                throw new System.NotSupportedException();
                 cw.WriteLine( "[ThreadStatic]" );
                 cw.WriteLine( "static global::SilentOrbit.ProtocolBuffers.MemoryStreamStack stack = new " + options.ExperimentalStack + "();" );
-                stack = "stack";
+                throw new System.NotSupportedException();
             }
 
             // SerializeDelta
