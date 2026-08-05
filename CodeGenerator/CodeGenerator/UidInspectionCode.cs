@@ -41,9 +41,11 @@ namespace SilentOrbit.ProtocolBuffers
                     var type = f.OptionUidClear ? "Clear" : f.ProtoType.ProtoName;
                     if (f.Rule == FieldRule.Repeated)
                     {
+                        cw.IfBracket($"{f.CsName} != null");
                         cw.ForeachBracket("uid", f.CsName);
                         cw.WriteLine($"action(UidType.{type}, ref uid.Value);");
                         cw.WriteLine($"{f.CsName}[i] = uid;"); // Write changes back, note: ForeachBracket doesn't actually use a foreach
+                        cw.EndBracket();
                         cw.EndBracket();
                     }
                     else
