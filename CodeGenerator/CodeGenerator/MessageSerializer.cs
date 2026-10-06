@@ -219,6 +219,8 @@ namespace SilentOrbit.ProtocolBuffers
                     cw.WriteLine("long limit = stream.Position + length;");
                 }
 
+                cw.WriteLine("uint lastFieldId = 0;");
+
                 cw.WhileBracket("true");
 
                 if (method == "DeserializeLengthDelimited" || method == "DeserializeLength")
@@ -241,6 +243,8 @@ namespace SilentOrbit.ProtocolBuffers
                     cw.WriteIndent("break;");
                 else
                     cw.WriteIndent("throw new System.IO.EndOfStreamException();");
+
+                cw.WriteLine($"stream.ConsumeFieldOperation(\"{m.FullCsType}\");");
 
                 //Determine if we need the lowID optimization
                 bool hasLowID = false;
@@ -265,6 +269,7 @@ namespace SilentOrbit.ProtocolBuffers
                         cw.Comment("Field " + f.ID + " " + f.WireType);
                         cw.Indent();
                         cw.Case(((f.ID << 3) | (int)f.WireType));
+                        GenerateFieldOrderCheck(m, cw, f.ID + "u", f.Rule == FieldRule.Repeated);
                         if (FieldSerializer.FieldReader(f, cw))
                             cw.WriteLine("continue;");
                     }
@@ -275,15 +280,21 @@ namespace SilentOrbit.ProtocolBuffers
 
                 cw.WriteLine();
 
-                cw.Comment("Reading field ID > 16 and unknown field ID/wire type combinations");
+                cw.Comment("Reading known and unknown field ID/wire type combinations");
                 cw.Switch("key.Field");
                 //cw.Case(0);
                 //cw.WriteLine("throw new global::SilentOrbit.ProtocolBuffers.ProtocolBufferException(\"Invalid field id: 0, something went wrong in the stream\");");
                 foreach (Field f in m.Fields.Values)
                 {
-                    if (f.ID < 16)
-                        continue;
                     cw.Case(f.ID);
+                    GenerateFieldOrderCheck(m, cw, f.ID + "u", f.Rule == FieldRule.Repeated);
+                    if (f.ID < 16)
+                    {
+                        cw.WriteLine("global::SilentOrbit.ProtocolBuffers.ProtocolParser.SkipKey(stream, key);");
+                        cw.WriteLine("break;");
+                        continue;
+                    }
+
                     //Makes sure we got the right wire type
                     cw.WriteLine("if(key.WireType != global::SilentOrbit.ProtocolBuffers.Wire." + f.WireType + ")");
                     cw.WriteIndent("break;"); //This can be changed to throw an exception for unknown formats.
@@ -291,6 +302,7 @@ namespace SilentOrbit.ProtocolBuffers
                         cw.WriteLine("continue;");
                 }
                 cw.CaseDefault();
+                GenerateFieldOrderCheck(m, cw, "key.Field", true);
                 cw.WriteLine("global::SilentOrbit.ProtocolBuffers.ProtocolParser.SkipKey(stream, key);");
                 cw.WriteLine("break;");
                 cw.SwitchEnd();
@@ -305,6 +317,11 @@ namespace SilentOrbit.ProtocolBuffers
             }
 
             return;
+        }
+
+        static void GenerateFieldOrderCheck(ProtoMessage m, CodeWriter cw, string fieldId, bool fieldIsRepeated)
+        {
+            cw.WriteLine($"stream.ValidateFieldOrder(ref lastFieldId, {fieldId}, {fieldIsRepeated.ToString().ToLowerInvariant()}, \"{m.FullCsType}\");");
         }
 
         static void ResetAndPoolField( CodeWriter cw, string name, Field f )

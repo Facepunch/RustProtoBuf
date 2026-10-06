@@ -29,12 +29,8 @@ namespace SilentOrbit.ProtocolBuffers
                     cw.WriteLine("long end" + f.ID + " = global::SilentOrbit.ProtocolBuffers.ProtocolParser.ReadUInt32(stream);");
                     cw.WriteLine("end" + f.ID + " += stream.Position;");
                     cw.WhileBracket("stream.Position < end" + f.ID);
+					WriteRepeatedElementReadLimit(f, cw);
                     cw.WriteLine("instance." + f.CsName + ".Add(" + FieldReaderType(f, "stream", null) + ");");
-                    if (f.OptionMaxCount > 0)
-                    {
-                        cw.WriteLine($"if (instance.{f.CsName}.Count > {f.OptionMaxCount})");
-                        cw.WriteIndent($"throw new global::SilentOrbit.ProtocolBuffers.ProtocolBufferException(\"Repeated field {f.CsName} exceeded max count of {f.OptionMaxCount}\");");
-                    }
 
                     cw.EndBracket();
 
@@ -46,6 +42,7 @@ namespace SilentOrbit.ProtocolBuffers
                     cw.Comment("repeated");
 
                     // note: can only use 'repeated packed' for primitives so this code path doesn't need to be duplicated above
+					WriteRepeatedElementReadLimit(f, cw);
                     if (f.ProtoType is ProtoMessage && f.ProtoType.OptionType == "struct")
                     {
                         cw.WriteLine( "{" );
@@ -57,12 +54,6 @@ namespace SilentOrbit.ProtocolBuffers
                     else
                     {
                         cw.WriteLine("instance." + f.CsName + ".Add(" + FieldReaderType(f, "stream", null) + ");");
-                    }
-
-                    if (f.OptionMaxCount > 0)
-                    {
-                        cw.WriteLine($"if (instance.{f.CsName}.Count > {f.OptionMaxCount})");
-                        cw.WriteIndent($"throw new global::SilentOrbit.ProtocolBuffers.ProtocolBufferException(\"Repeated field {f.CsName} exceeded max count of {f.OptionMaxCount}\");");
                     }
                 }
             }
@@ -114,6 +105,17 @@ namespace SilentOrbit.ProtocolBuffers
             }
             return true;
         }
+
+		static void WriteRepeatedElementReadLimit(Field f, CodeWriter cw)
+		{
+			if (f.OptionMaxCount > 0)
+			{
+				cw.WriteLine($"if (instance.{f.CsName}.Count >= {f.OptionMaxCount})");
+				cw.WriteIndent($"throw new global::SilentOrbit.ProtocolBuffers.ProtocolBufferException(\"Repeated field {f.CsName} exceeded max count of {f.OptionMaxCount}\");");
+			}
+
+			cw.WriteLine("stream.ConsumeRepeatedElement();");
+		}
 
         /// <summary>
         /// Read a primitive from the stream
